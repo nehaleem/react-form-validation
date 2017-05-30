@@ -1,6 +1,7 @@
 import React, { PureComponent } from 'react';
 import TextForm from 'text-form/Component';
 import pick from 'lodash/pick';
+import uniq from 'lodash/uniq';
 
 const style = {
 	display: 'flex',
@@ -225,8 +226,7 @@ export default class FormsContainer extends PureComponent {
 	_handleValidationsStart = (formId, validatingFieldNames) => {
 		const validatingFieldNamesByFormId = { ...this.state.validatingFieldNamesByFormId };
 
-		validatingFieldNamesByFormId[formId] = validatingFieldNamesByFormId[formId]
-			.concat(validatingFieldNames);
+		validatingFieldNamesByFormId[formId] = uniq(validatingFieldNamesByFormId[formId].concat(validatingFieldNames));
 
 		this.setState({ validatingFieldNamesByFormId });
 
