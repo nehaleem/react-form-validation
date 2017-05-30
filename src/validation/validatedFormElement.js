@@ -25,6 +25,7 @@ export default (FormElement) => {
 
 		state = {
 			isDirty: false,
+			wasOnceFocused: false,
 		}
 
 		componentDidMount () {
@@ -48,15 +49,14 @@ export default (FormElement) => {
 			const isValid = this.props.checkFieldValidity(this.props.name, this.props.reports);
 			const style = {};
 
-			if (this.state.isDirty) {
-				if (isValid) {
-					style.border = '2px solid green';
-					style.backgroundColor = '#b4ffba';
-				}
-				else {
-					style.border = '2px solid red';
-					style.backgroundColor = '#ffa8a8';
-				}
+			if (!isValid) {
+				style.border = '2px solid red';
+				style.backgroundColor = '#ffa8a8';
+
+			}
+			else if (this.state.wasOnceFocused && this.state.isDirty) {
+				style.border = '2px solid green';
+				style.backgroundColor = '#b4ffba';
 			}
 
 			return (
@@ -65,6 +65,7 @@ export default (FormElement) => {
 					{...props}
 					style={style}
 					onChange={this._handleChange}
+					onFocus={this._handleFocus}
 					onBlur={this._handleBlur}
 				/>
 			);
@@ -77,8 +78,12 @@ export default (FormElement) => {
 		_handleBlur = (event) => {
 			const { value, name } = event.target;
 
-			if (this.state.isDirty) {
-				this.props.onValidationRequest(name, value);
+			this.props.onValidationRequest(name, value);
+		}
+
+		_handleFocus = () => {
+			if (!this.state.wasOnceFocused) {
+				this.setState({ wasOnceFocused: true });
 			}
 		}
 
@@ -86,6 +91,10 @@ export default (FormElement) => {
 			const { value, name } = event.target;
 
 			this._handleChangeEventDebounced(name, value);
+
+			if (!this.state.isDirty) {
+				this.setState({ isDirty: true });
+			}
 		}
 
 		_handleChangeEvent = (name, value) => {

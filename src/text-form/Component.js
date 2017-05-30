@@ -189,7 +189,7 @@ export default class Form extends PureComponent {
 
 		const fieldName = event.target.getAttribute('data-field-name');
 
-		this.props.onFieldValueClone(this.props.model.id, fieldName, this.props.model);
+		this.props.onFieldValueClone(this.props.index, fieldName, this.props.model);
 	}
 
 	_handleImageReset = (event) => {
