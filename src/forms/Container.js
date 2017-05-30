@@ -144,11 +144,17 @@ export default class FormsContainer extends PureComponent {
 			.filter((form) => form.id !== id);
 		const validatingFieldNamesByFormId = { ...this.state.validatingFieldNamesByFormId };
 		const validationReportsByFormId = { ...this.state.validationReportsByFormId };
+		const validationsBySeverity = this._groupReportsBySeverity(validationReportsByFormId[id]);
+		const errorsCount = this.state.errorsCount - validationsBySeverity.errors.length;
+		const warningsCount = this.state.warningsCount - validationsBySeverity.warnings.length;
 
 		delete validatingFieldNamesByFormId[id];
 		delete validationReportsByFormId[id];
 
-		this.setState({ forms, validatingFieldNamesByFormId, validationReportsByFormId });
+		this.setState({
+			errorsCount, warningsCount, forms,
+			validatingFieldNamesByFormId, validationReportsByFormId,
+		});
 	}
 
 	_handleValidationsStart = (formId, validatingFieldNames) => {
@@ -168,25 +174,28 @@ export default class FormsContainer extends PureComponent {
 		const validatingFieldNames = this.state.validatingFieldNamesByFormId[formId]
 			.filter((fieldName) => !reportsFieldNames.includes(fieldName));
 
-		const reportsBySeverity = this._groupReportsBySeverity(reports);
-
 		const updatedReports = this.state.validationReportsByFormId[formId]
 			.filter((report) => !reportsFieldNames.includes(report.fieldName))
 			.concat(reports)
 			.filter((report) => report.type !== 'valid');
+		const validationReportsByFormId = {
+			...this.state.validationReportsByFormId,
+			[formId]: updatedReports,
+		};
+		const allReports = Object.values(validationReportsByFormId)
+			.reduce((acc, formReports) => acc.concat(formReports));
+
+		const allReportsBySeverity = this._groupReportsBySeverity(allReports);
 
 		this.setState({
-			formsAreInvalid: reportsBySeverity.errors.length,
-			validationReportsByFormId: {
-				...this.state.validationReportsByFormId,
-				[formId]: updatedReports,
-			},
+			formsAreInvalid: allReportsBySeverity.errors.length,
+			validationReportsByFormId,
 			validatingFieldNamesByFormId: {
 				...this.state.validatingFieldNamesByFormId,
 				[formId]: validatingFieldNames,
 			},
-			errorsCount: reportsBySeverity.errors.length,
-			warningsCount: reportsBySeverity.warnings.length,
+			errorsCount: allReportsBySeverity.errors.length,
+			warningsCount: allReportsBySeverity.warnings.length,
 		});
 
 		this._afterValidations(formId, reports);
