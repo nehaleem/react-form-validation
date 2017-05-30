@@ -1,5 +1,18 @@
 import React, { PureComponent } from 'react';
 import TextForm from 'text-form/Component';
+import pick from 'lodash/pick';
+
+const style = {
+	display: 'flex',
+	justifyContent: 'space-between',
+};
+
+const codeStyle = {
+	backgroundColor: '#cecece',
+	fontFamily: 'consolas',
+	padding: '4px',
+	fontSize: '14px',
+};
 
 export default class FormsContainer extends PureComponent {
 	constructor (props) {
@@ -25,10 +38,11 @@ export default class FormsContainer extends PureComponent {
 
 	render () {
 		const forms = this.state.forms
-			.map((form) => {
+			.map((form, index) => {
 				return (
 					<TextForm
 						key={form.id}
+						index={index}
 						model={form}
 						shouldValidate={this.state.shouldValidate}
 						validationReports={this.state.validationReportsByFormId[form.id]}
@@ -45,26 +59,77 @@ export default class FormsContainer extends PureComponent {
 		const isAnyFormValidating = this._isAnyFormValidating();
 
 		return (
-			<div>
-				<p>
-					Errors: {this.state.errorsCount} Warnings: {this.state.warningsCount}
-				</p>
-				<button onClick={this._handleAddFormClick}>Add form</button>
+			<div style={style}>
+				<div>
+					<h2>Forms</h2>
+					<button disabled={isAnyFormValidating || this.state.formsAreInvalid}>
+						Save
+					</button>
+					<button onClick={this._handleAddFormClick}>Add form</button>
 
-				{forms}
+					{forms}
+				</div>
 
-				<button disabled={isAnyFormValidating || this.state.formsAreInvalid}>
-					Save
-				</button>
+				<div>
+					<h2>State</h2>
+					<pre style={codeStyle}>
+						{JSON.stringify(pick(this.state, 'errorsCount', 'warningsCount', 'formsAreInvalid', 'shouldValidate'), null, 2)}
+					</pre>
+				</div>
+
+				<div>
+					<h2>Forms model</h2>
+					<pre style={codeStyle}>{JSON.stringify(this.state.forms, null, 2)}</pre>
+				</div>
+
+				<div>
+					<h2>Reports model</h2>
+					<pre style={codeStyle}>{JSON.stringify(this.state.validationReportsByFormId, null, 2)}</pre>
+				</div>
+
+				<div>
+					<h2>Validating fields model</h2>
+					<pre style={codeStyle}>{JSON.stringify(this.state.validatingFieldNamesByFormId, null, 2)}</pre>
+				</div>
 			</div>
 		);
 	}
 
-	_handleFieldValueClone = (fieldName, value) => {
+	_handleFieldValueClone = (formIndex, fieldName, model) => {
 		const forms = this.state.forms
-			.map((form) => Object.assign({}, form, { [fieldName]: value }));
+			.map((form, index) => {
+				if (index > formIndex) {
+					return Object.assign({}, form, { [fieldName]: model[fieldName] });
+				}
+				else {
+					return form;
+				}
+			});
+		const fieldValidationReports = this.state.validationReportsByFormId[model.id]
+			.filter((report) => report.fieldName === fieldName);
+		const validationReportsByFormId = { ...this.state.validationReportsByFormId };
 
-		this.setState({ forms });
+		Object.keys(validationReportsByFormId)
+			.forEach((formId, index) => {
+				if (index > formIndex) {
+					validationReportsByFormId[formId] = validationReportsByFormId[formId]
+						.filter((report) => report.fieldName !== fieldName) // Remove field reports
+						.concat(fieldValidationReports); // Add cloned reports
+				}
+			});
+		const updatedState = {
+			...this.state,
+			forms,
+			validationReportsByFormId,
+		};
+
+		this.setState(
+			{ shouldValidate: false },
+			() => this.setState(
+				updatedState,
+				() => this.setState({ shouldValidate: true }),
+			),
+		);
 	}
 
 	_handleMergeModelRequest = (formId, partialModel, { shouldValidate = true } = {}) => {
@@ -188,7 +253,7 @@ export default class FormsContainer extends PureComponent {
 		const allReportsBySeverity = this._groupReportsBySeverity(allReports);
 
 		this.setState({
-			formsAreInvalid: allReportsBySeverity.errors.length,
+			formsAreInvalid: allReportsBySeverity.errors.length > 0,
 			validationReportsByFormId,
 			validatingFieldNamesByFormId: {
 				...this.state.validatingFieldNamesByFormId,

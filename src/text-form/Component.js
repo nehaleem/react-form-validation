@@ -24,6 +24,7 @@ const dropStyle = {
 
 export default class Form extends PureComponent {
 	static propTypes = {
+		index: P.number,
 		model: P.object.isRequired,
 		shouldValidate: P.bool,
 		validatingFieldNames: P.array.isRequired,
@@ -46,7 +47,7 @@ export default class Form extends PureComponent {
 		onValidationDone () {},   // onValidationDone (id, fieldValidityByFieldName)
 		onFieldValueChange () {}, // onFieldValueChange (id, fieldName, value)
 		onRemove () {},           // onRemove (id)
-		onFieldValueClone () {},  // onFieldValueClone (fieldName, value)
+		onFieldValueClone () {},  // onFieldValueClone (formIndex, fieldName, model)
 		mergeModel () {},         // mergeModel (id, partialModel)
 	};
 
@@ -75,7 +76,7 @@ export default class Form extends PureComponent {
 				</Validator>
 
 				<button onClick={this._handleRemove}>Remove</button>
-				<h3>Form id#{this.props.model.id}</h3>
+				<h3>Form #{this.props.model.id}</h3>
 
 				<div>
 					Username:
@@ -88,8 +89,13 @@ export default class Form extends PureComponent {
 						onValidationRequest={this._handleFieldValidationRequest}
 					/>
 					*
-					<a href="javascript:void(0);" data-field-name="username" onClick={this._handleFieldValueClone}>Clone down</a>
-					{ this.props.validatingFieldNames.includes('username') && 'Validating' }
+					<button
+						data-field-name="username"
+						disabled={this.props.validatingFieldNames.includes('username')}
+						onClick={this._handleFieldValueClone}
+					>
+						{ this.props.validatingFieldNames.includes('username') && 'Validating' || 'Clone down' }
+					</button>
 				</div>
 
 				<div>
@@ -103,7 +109,13 @@ export default class Form extends PureComponent {
 						onValidationRequest={this._handleFieldValidationRequest}
 					/>
 					*
-					<a href="javascript:void(0);" data-field-name="fullName" onClick={this._handleFieldValueClone}>Clone down</a>
+					<button
+						data-field-name="fullName"
+						disabled={this.props.validatingFieldNames.includes('fullName')}
+						onClick={this._handleFieldValueClone}
+					>
+						Clone down
+					</button>
 				</div>
 
 				<div>
@@ -146,22 +158,28 @@ export default class Form extends PureComponent {
 								onChange={this._handleFileDrop}
 							/>
 					}
-					{ this.props.validatingFieldNames.includes('_imageBlob') && 'Validating' }
 
-					<a href="javascript:void(0);" onClick={this._handleImageReset}>X</a>
-					<a href="javascript:void(0);" data-field-name="url" onClick={this._handleFieldValueClone}>Clone down</a>
-				</div>
-
-				<div>
-					<pre>{JSON.stringify(this.props.model, null, 2)}</pre>
+					<button onClick={this._handleImageReset}>X</button>
+					<button
+						data-field-name="url"
+						disabled={this.props.validatingFieldNames.includes('url')}
+						onClick={this._handleFieldValueClone}
+					>
+						{ this.props.validatingFieldNames.includes('_imageBlob') && 'Validating' || 'Clone down' }
+					</button>
 				</div>
 
 				<hr />
 
-				<div>
-					<h4>Validations</h4>
-					<Reporter reports={this.props.validationReports} />
-				</div>
+				{
+					this.props.validationReports.length > 0 &&
+					(
+						<div>
+							<h4>Validations</h4>
+							<Reporter reports={this.props.validationReports} />
+						</div>
+					)
+				}
 			</div>
 		);
 	}
@@ -171,7 +189,7 @@ export default class Form extends PureComponent {
 
 		const fieldName = event.target.getAttribute('data-field-name');
 
-		this.props.onFieldValueClone(fieldName, this.props.model[fieldName]);
+		this.props.onFieldValueClone(this.props.model.id, fieldName, this.props.model);
 	}
 
 	_handleImageReset = (event) => {
