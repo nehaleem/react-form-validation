@@ -1,6 +1,87 @@
 <html>
 <head>
     <title>React from validation</title>
+	<style type="text/css">
+		* {
+			box-sizing: border-box;
+		}
+
+		html, body {
+			height: 100%;
+		}
+
+		body {
+			color: #222;
+			font-family: "Lucida Console",sans-serif;
+			margin: 20px;
+		}
+
+		.react-draggable, .cursor {
+			cursor: move;
+		}
+
+		.no-cursor {
+			cursor: auto;
+		}
+
+		.react-draggable strong {
+			background: #ddd;
+			border: 1px solid #999;
+			display: block;
+			margin-bottom: 10px;
+			padding: 3px 5px;
+			text-align: center;
+		}
+
+		.box {
+			-webkit-box-shadow: 4px 4px 22px -8px rgba(0,0,0,0.75);
+			-moz-box-shadow: 4px 4px 22px -8px rgba(0,0,0,0.75);
+			box-shadow: 4px 4px 22px -8px rgba(0,0,0,0.75);
+			background: #fff;
+			border: 1px solid #999;
+			width: 400px;
+			height: 180px;
+			margin: 10px;
+			padding: 10px;
+			float: left;
+		}
+
+		.field {
+			margin-bottom: 5px;
+		}
+
+		.field input {
+			padding: 4px;
+		}
+
+		.controls {
+			margin-bottom: 10px;
+		}
+
+		textarea:focus, input:focus{
+			outline: none;
+		}
+
+		.settings input[type="text"],
+		.settings input[type="number"] {
+			width: 100px;
+		}
+
+		button + button {
+			margin-left: 5px;
+		}
+
+		.form label {
+			width: 90px;
+		}
+
+		label {
+			display: inline-block;
+			padding-right: 10px;
+			font-weight: bold;
+			text-align: right;
+		}​
+	</style>
 </head>
 <body>
     <div id="react-app"></div>

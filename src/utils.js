@@ -26,19 +26,17 @@ export function cancelable (p, onCancel) {
 	return raced;
 }
 
-export function generateReport (errors, warnings) {
-	const report = {};
+export function generateErrors (errors) {
+	return { errors };
+}
 
-	if (errors) {
-		Object.assign(report, { errors });
-	}
+export function generateMultipleReports (reportsByName) {
+	return { reportsByName };
+}
 
-	if (warnings) {
-		Object.assign(report, { warnings });
-	}
-
-	return report;
-};
+export function generateWarnings (warnings) {
+	return { warnings };
+}
 
 export function parseValidationResults (fieldName, validationResults) {
 	return validationResults.filter((result) => result.fieldName === fieldName);
@@ -60,3 +58,5 @@ export function areResultsWithoutError (...validationResults) {
 		return validationResults.every((result) => result.type !== 'error');
 	}
 }
+
+export const delay = (delay = 1000) => new Promise((resolve) => setTimeout(() => resolve(), delay));

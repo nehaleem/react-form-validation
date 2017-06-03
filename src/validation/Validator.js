@@ -1,6 +1,6 @@
 import React, { PureComponent } from 'react';
 import P from 'prop-types';
-import assert from 'assert';
+import * as utils from './utils';
 
 import { CancelReason, cancelable } from 'utils';
 
@@ -17,40 +17,34 @@ export default class Validator extends PureComponent {
 		onDone () {},   // onValidationDone (fieldValidityByFieldName)
 	};
 
-	_runningValidationsByFieldNameMap = new Map();
-	_fieldNames = [];
+	_runningValidationsByFieldNameMap = null;
 
 	componentWillMount () {
+		if (!this.props.isEnabled) {
+			return;
+		}
+
 		const children = React.Children.toArray(this.props.children);
 
-		assert(children.length, 'No validators defined, specify atleast 1');
+		utils.assertValidators(children, (validator) => validator.type.name);
 
-		const uniqueValidatorPairs = new Set();
+		this._runningValidationsByFieldNameMap = children
+			.reduce((map, validator) => map.set(validator.props.name, []), new Map());
+	}
 
-		children.forEach((validator) => {
-			assert(typeof validator.props.name !== 'undefined', `Validator ${validator.type.name} has not props.name!`);
+	componentDidMount () {
+		const validatingFieldNamesSet = this.props.children
+			.reduce((acc, validator) => {
+				acc.add(validator.props.name);
 
-			if ('stopOnError' in validator.props) {
-				assert(
-					typeof validator.props.stopOnError === 'boolean',
-					`Validator ${validator.type.name} has invalid props.stopOnError!`,
-				);
-			}
+				return acc;
+			}, new Set());
 
-			const validatorUniqueKey = `${validator.type.name}-${validator.props.name}`;
+		const uniqueValidatingFieldNames = [ ...validatingFieldNamesSet ];
 
-			assert(
-				!uniqueValidatorPairs.has(validatorUniqueKey),
-				`Cannot have same unique validator pairs ${validatorUniqueKey}`,
-			);
+		this.props.onStart(uniqueValidatingFieldNames);
 
-			uniqueValidatorPairs.add(validatorUniqueKey);
-
-			this._runningValidationsByFieldNameMap.set(validator.props.name, []);
-			this._fieldNames.push(validator.props.name);
-		});
-
-		this._fieldNames = [ ...new Set(this._fieldNames) ];
+		this._runValidators(this.props.children);
 	}
 
 	componentDidUpdate (prevProps) {
@@ -99,102 +93,90 @@ export default class Validator extends PureComponent {
 	}
 
 	async _runValidators (validators) {
-		let shouldContinue = true;
-		let index = 0;
-		const reports = [];
-		let wasAborted = false;
+		const stoppedFieldValidators = [];
+		const abortedFieldValidators = [];
+		const validatorsCount = validators.length;
+		let reports = [];
 
-		while (shouldContinue) {
+		for (let index = 0; index < validatorsCount; index++) {
 			const validator = validators[index];
+
+			if (stoppedFieldValidators.includes(validator.props.name)) {
+				continue; // Skip any validators with this field
+			}
+
 			const validate = validator.type;
 			let report = validate(validator.props);
 
-			if (report) {
-				if (typeof report.then === 'function') {
-					report = cancelable(report, () => console.log(`Async validation ${validator.type.name} aborted!`));
+			report = report || {}; // Allow report generator to return null
 
-					this._addRunningValidation(validator.props.name, report);
-
-					try {
-						const finalReport = await report;
-
-						console.log(`Async validation ${validator.type.name} DONE`);
-
-						this._removeRunningValidation(validator.props.name, report);
-
-						if (finalReport !== null) {
-							if (!validator.props.stopOnError || finalReport.errors || finalReport.warnings) {
-								reports.push({
-									name: validator.type.name,
-									fieldName: validator.props.name,
-									...finalReport,
-								});
-							}
-						}
-						else {
-							const validationReport = {
-								name: validator.type.name,
-								fieldName: validator.props.name,
-							};
-
-							if (validationReport.data) {
-								validationReport.data = finalReport.data;
-							}
-
-							reports.push(validationReport);
-						}
-					}
-					catch (error) {
-						if (error instanceof CancelReason) {
-							wasAborted = true;
-							shouldContinue = false;
-						}
-						else {
-							reports.push({
-								name: validator.type.name,
-								fieldName: validator.props.name,
-								errors: [ error ],
-							});
-						}
-
-						this._removeRunningValidation(validator.props.name, report);
-					}
+			// Sync validation
+			if (typeof report.then !== 'function') {
+				if (report.errors && validator.props.stopOnError) {
+					stoppedFieldValidators.push(validator.props.name);
 				}
-				else {
-					if (validator.props.stopOnError) {
-						shouldContinue = false;
+
+				reports.push({
+					...report,
+					name: validator.type.name,
+					fieldName: validator.props.name,
+				});
+			}
+			// Async validation
+			else {
+				report = cancelable(report, () => console.log(`Async validation ${validator.type.name} aborted!`));
+
+				this._addRunningValidation(validator.props.name, report);
+
+				try {
+					let asyncReport = await report;
+
+					asyncReport = asyncReport || {};
+
+					console.log(`Async validation ${validator.type.name} DONE`);
+
+					if (asyncReport.errors && validator.props.stopOnError) {
+						stoppedFieldValidators.push(validator.props.name);
 					}
 
-					if (report.errors || report.warnings) {
-						reports.push({
-							name: validator.type.name,
-							fieldName: validator.props.name,
-							...report,
-						});
+					const validationReport = {
+						...asyncReport,
+						name: validator.type.name,
+						fieldName: validator.props.name,
+					};
+
+					if (asyncReport.data) {
+						validationReport.data = asyncReport.data;
+					}
+
+					reports.push(validationReport);
+				}
+				catch (error) {
+					if (error instanceof CancelReason) {
+						abortedFieldValidators.push(validator.props.name);
 					}
 					else {
 						reports.push({
 							name: validator.type.name,
 							fieldName: validator.props.name,
+							errors: [ error ],
 						});
+
+						if (validator.props.stopOnError) {
+							stoppedFieldValidators.push(validator.props.name);
+						}
 					}
 				}
-			}
-			else {
-				reports.push({
-					name: validator.type.name,
-					fieldName: validator.props.name,
-				});
-			}
 
-			index++;
-
-			if (!validators[index]) {
-				shouldContinue = false;
+				this._removeRunningValidation(validator.props.name, report);
 			}
 		}
 
-		if (!wasAborted) {
+		if (abortedFieldValidators.length) {
+			reports = reports.filter((report) => abortedFieldValidators.includes(report.fieldName));
+		}
+
+		if (reports) {
 			const consolidatedReports = this._consolidateReports(reports);
 
 			this.props.onDone(consolidatedReports);

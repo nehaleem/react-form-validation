@@ -2,9 +2,7 @@ import React, { PureComponent } from 'react';
 import P from 'prop-types';
 
 import Input from 'form-elements/InputComponent';
-import Validator from 'validation/Validator';
 import validatedFormElement from 'validation/validatedFormElement';
-import * as Validators from 'validation/validators';
 import Reporter from 'validation/Reporter';
 
 const ValidatedInput = validatedFormElement(Input);
@@ -25,163 +23,177 @@ const dropStyle = {
 export default class Form extends PureComponent {
 	static propTypes = {
 		index: P.number,
+		isDisabled: P.bool,
 		model: P.object.isRequired,
-		shouldValidate: P.bool,
 		validatingFieldNames: P.array.isRequired,
 		validationReports: P.arrayOf(
 			P.shape({
-				fieldName: P.string,
 				name: P.string,
-				type: P.oneOf([ 'error', 'warning', 'valid' ]),
+				id: P.string,
+				type: P.oneOf([ 'error', 'warning' ]),
 			}),
-		),
-		onValidationStart: P.func,
-		onValidationDone: P.func,
+		).isRequired,
+		fieldsState: P.object.isRequired,
 		onFieldValueChange: P.func,
 		onFieldValueReset: P.func,
+		onFieldStateChange: P.func,
 		onRemove: P.func,
 	};
 
 	static defaultProps = {
-		onValidationStart () {},  // onValidationStart (id, fieldNames)
-		onValidationDone () {},   // onValidationDone (id, fieldValidityByFieldName)
-		onFieldValueChange () {}, // onFieldValueChange (id, fieldName, value)
-		onRemove () {},           // onRemove (id)
-		onFieldValueClone () {},  // onFieldValueClone (formIndex, fieldName, model)
 		mergeModel () {},         // mergeModel (id, partialModel)
+		onFieldValueChange () {}, // onFieldValueChange (id, fieldName, value)
+		onFieldStateChange () {}, // onFieldStateChange (id, fieldName, partialState)
+		onFieldValueClone () {},  // onFieldValueClone (formIndex, fieldName, model)
+		onRemove () {},           // onRemove (id)
 	};
 
 	render () {
-		const { url, width, height, username, fullName, password1, password2, _imageBlob } = this.props.model;
+		const { url, width, height, username, fullName, password1, password2 } = this.props.model;
 
 		return (
-			<div style={style}>
-				<Validator
-					isEnabled={this.props.shouldValidate}
-					onStart={this._handleValidationsStart}
-					onDone={this._handleValidationsDone}
-				>
-					<Validators.ShouldntContainBullshit name="username" value={username} />
-					<Validators.IsRequired name="username" value={username.length} />
-					<Validators.LengthRange stopOnError={true} name="username" from={3} length={username.length} />
-					<Validators.IsUniqueAsync name="username" value={username.length} />
-
-					<Validators.IsRequired name="fullName" value={fullName.length} />
-
-					<Validators.IsRequired name="password1" value={password1} />
-					<Validators.IsRequired name="password2" value={password2} />
-					<Validators.MustBeEqual name="password" value1={password1} value2={password2} />
-
-					<Validators.ValidateImage name="_imageBlob" imageBlob={_imageBlob} />
-				</Validator>
-
+			<div className="form" style={style}>
 				<button onClick={this._handleRemove}>Remove</button>
 				<h3>Form #{this.props.model.id}</h3>
 
-				<div>
-					Username:
+				<div className="field">
+					<label>Username</label>
 
 					<ValidatedInput
 						type="text"
+						disabled={this.props.isDisabled}
 						name="username"
 						value={username}
+						state={this.props.fieldsState.username}
 						reports={this.props.validationReports}
 						onValidationRequest={this._handleFieldValidationRequest}
+						onStateChange={this._handleFieldStateChange}
 					/>
 					*
 					<button
 						data-field-name="username"
-						disabled={this.props.validatingFieldNames.includes('username')}
+						disabled={this.props.isDisabled || this.props.validatingFieldNames.includes('username')}
 						onClick={this._handleFieldValueClone}
 					>
 						{ this.props.validatingFieldNames.includes('username') && 'Validating' || 'Clone down' }
 					</button>
+					<div>
+						<Reporter
+							names={[ 'username' ]}
+							fieldStateByName={this.props.fieldsState}
+							reports={this.props.validationReports}
+						/>
+					</div>
 				</div>
 
-				<div>
-					Fullname:
+				<div className="field">
+					<label>Fullname</label>
 
 					<ValidatedInput
 						type="text"
 						name="fullName"
+						disabled={this.props.isDisabled}
 						value={fullName}
+						state={this.props.fieldsState.fullName}
 						reports={this.props.validationReports}
 						onValidationRequest={this._handleFieldValidationRequest}
+						onStateChange={this._handleFieldStateChange}
 					/>
 					*
 					<button
 						data-field-name="fullName"
-						disabled={this.props.validatingFieldNames.includes('fullName')}
+						disabled={this.props.isDisabled || this.props.validatingFieldNames.includes('fullName')}
 						onClick={this._handleFieldValueClone}
 					>
 						Clone down
 					</button>
+					<Reporter
+						names={[ 'fullName' ]}
+						fieldStateByName={this.props.fieldsState}
+						reports={this.props.validationReports}
+					/>
 				</div>
 
-				<div>
-					Password1:
+				<div className="field">
+					<label>Password1</label>
 
 					<ValidatedInput
 						type="password"
 						name="password1"
+						disabled={this.props.isDisabled}
 						value={password1}
+						state={this.props.fieldsState.password1}
 						reports={this.props.validationReports}
 						checkFieldValidity={this._checkPasswordFieldValidity}
 						onValidationRequest={this._handleFieldValidationRequest}
+						onStateChange={this._handleFieldStateChange}
 					/>
 					*Match
+
+					<Reporter
+						names={[ 'password1' ]}
+						fieldStateByName={this.props.fieldsState}
+						reports={this.props.validationReports}
+					/>
 				</div>
 
-				<div>
-					Password2:
+				<div className="field">
+					<label>Password2</label>
 
 					<ValidatedInput
 						type="password"
 						name="password2"
+						disabled={this.props.isDisabled}
 						value={password2}
+						state={this.props.fieldsState.password2}
 						reports={this.props.validationReports}
 						checkFieldValidity={this._checkPasswordFieldValidity}
 						onValidationRequest={this._handleFieldValidationRequest}
+						onStateChange={this._handleFieldStateChange}
+					/>
+
+					<Reporter
+						names={[ 'password2' ]}
+						fieldStateByName={this.props.fieldsState}
+						reports={this.props.validationReports}
+					/>
+					<Reporter
+						names={[ 'password' ]}
+						visibilityDependsOn={[ 'password1', 'password2' ]}
+						fieldStateByName={this.props.fieldsState}
+						reports={this.props.validationReports}
 					/>
 				</div>
 
-				<div>
-					DropThatShit:
+				<div className="field">
+					<label>Image</label>
 					{
 						url ?
 							<img src={url} width={width} height={height} /> :
 							<input
 								name="_imageBlob"
 								type="file"
+								disabled={this.props.isDisabled}
 								multiple={false}
 								style={dropStyle}
 								onChange={this._handleFileDrop}
 							/>
 					}
 
-					<button onClick={this._handleImageReset}>X</button>
-					<button
-						data-field-name="url"
-						disabled={this.props.validatingFieldNames.includes('url')}
-						onClick={this._handleFieldValueClone}
-					>
-						{ this.props.validatingFieldNames.includes('_imageBlob') && 'Validating' || 'Clone down' }
-					</button>
+					<button disabled={this.props.isDisabled} onClick={this._handleImageReset}>X</button>
+
+					<Reporter
+						names={[ '_imageBlob' ]}
+						fieldStateByName={this.props.fieldsState}
+						reports={this.props.validationReports}
+					/>
 				</div>
-
-				<hr />
-
-				{
-					this.props.validationReports.length > 0 &&
-					(
-						<div>
-							<h4>Validations</h4>
-							<Reporter reports={this.props.validationReports} />
-						</div>
-					)
-				}
 			</div>
 		);
+	}
+
+	_handleFieldStateChange = (fieldName, partialState) => {
+		this.props.onFieldStateChange(this.props.model.id, fieldName, partialState);
 	}
 
 	_handleFieldValueClone = (event) => {
@@ -200,7 +212,7 @@ export default class Form extends PureComponent {
 			width: 0,
 			height: 0,
 			_imageBlob: null,
-		}, { shouldValidate: false });
+		});
 	}
 
 	_handleFileDrop = (event) => {

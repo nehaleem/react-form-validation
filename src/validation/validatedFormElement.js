@@ -8,25 +8,26 @@ export default (FormElement) => {
 	class ValidatedFormElement extends PureComponent {
 		static propTypes = {
 			value: P.any,
+			state: P.shape({
+				isDirty: P.bool,
+				wasFocused: P.bool,
+			}),
 			reports: P.array,
 			changeDebounceTimeout: P.number,
 			checkFieldValidity: P.func,
 			onValidationRequest: P.func,
+			onStateChange: P.func,
 		};
 
 		static defaultProps = {
 			changeDebounceTimeout: 300,
 			// checkFieldValidity (fieldName, reports)
-			checkFieldValidity (fieldName, reports) {
-				return !reports.some((report) => report.type === 'error' && report.fieldName === fieldName);
+			checkFieldValidity (name, reports) {
+				return !reports.some((report) => report.type === 'error' && report.name === name);
 			},
 			onValidationRequest () {}, // onValidationRequest (name, value)
+			onStateChange () {},       // onStateChange (name, changedState)
 		};
-
-		state = {
-			isDirty: false,
-			wasOnceFocused: false,
-		}
 
 		componentDidMount () {
 			this._setValueNatively(this.props.value);
@@ -49,14 +50,9 @@ export default (FormElement) => {
 			const isValid = this.props.checkFieldValidity(this.props.name, this.props.reports);
 			const style = {};
 
-			if (!isValid) {
+			if ((this.props.state.wasFocused || this.props.state.isDirty) && !isValid) {
 				style.border = '2px solid red';
 				style.backgroundColor = '#ffa8a8';
-
-			}
-			else if (this.state.wasOnceFocused && this.state.isDirty) {
-				style.border = '2px solid green';
-				style.backgroundColor = '#b4ffba';
 			}
 
 			return (
@@ -65,7 +61,6 @@ export default (FormElement) => {
 					{...props}
 					style={style}
 					onChange={this._handleChange}
-					onFocus={this._handleFocus}
 					onBlur={this._handleBlur}
 				/>
 			);
@@ -78,12 +73,12 @@ export default (FormElement) => {
 		_handleBlur = (event) => {
 			const { value, name } = event.target;
 
-			this.props.onValidationRequest(name, value);
-		}
+			if (!this.props.state.wasFocused) {
+				this.props.onStateChange(name, { wasFocused: true });
+			}
 
-		_handleFocus = () => {
-			if (!this.state.wasOnceFocused) {
-				this.setState({ wasOnceFocused: true });
+			if (this.props.value !== value) {
+				this.props.onValidationRequest(name, value);
 			}
 		}
 
@@ -91,18 +86,14 @@ export default (FormElement) => {
 			const { value, name } = event.target;
 
 			this._handleChangeEventDebounced(name, value);
-
-			if (!this.state.isDirty) {
-				this.setState({ isDirty: true });
-			}
 		}
 
 		_handleChangeEvent = (name, value) => {
-			if (!this.state.isDirty) {
-				this.setState({ isDirty: true });
-			}
-
 			this.props.onValidationRequest(name, value);
+
+			if (!this.props.state.isDirty) {
+				this.props.onStateChange(name, { isDirty: true });
+			}
 		}
 	}
 
