@@ -27,7 +27,6 @@ export default function (ItemsContainer) {
 		};
 
 		state = {
-			isAnyFieldWithReportsDirty: false,
 			validatingKeysByItemId: {},
 			validationReportsByItemId: {},
 			fieldsStateByItemId: {},
@@ -79,6 +78,12 @@ export default function (ItemsContainer) {
 		}
 
 		componentWillUpdate (nextProps, nextState) {
+			if (this.state.validatingKeysByItemId !== nextState.validatingKeysByItemId) {
+				const isAnyItemValidating = this._isAnyItemValidating(nextState.validatingKeysByItemId);
+
+				this.props.onValidatingStatusChange(isAnyItemValidating);
+			}
+
 			if (
 				this.state.validationReportsByItemId !== nextState.validationReportsByItemId ||
 				this.state.fieldsStateByItemId !== nextState.fieldsStateByItemId
@@ -116,10 +121,6 @@ export default function (ItemsContainer) {
 				else {
 					this.props.onStatisticsReport({ isAnyFieldWithReportsDirty });
 				}
-
-				const isAnyItemValidating = this._isAnyItemValidating();
-
-				this.props.onValidatingStatusChange(isAnyItemValidating);
 			}
 		}
 
@@ -202,6 +203,7 @@ export default function (ItemsContainer) {
 			this.setState({ fieldsStateByItemId });
 		}
 
+		//TODO: Maybe allow to change behavior by configuration
 		_isAnyFieldWithReportsDirty = (state) => {
 			return Object.keys(state.fieldsStateByItemId)
 				.some((itemId) => {
@@ -210,7 +212,8 @@ export default function (ItemsContainer) {
 					return Object.keys(fieldsStateByName)
 						.some((name) => {
 							if (fieldsStateByName[name].isDirty || fieldsStateByName[name].wasFocused) {
-								return state.validationReportsByItemId[itemId].length > 0;
+								return state.validationReportsByItemId[itemId]
+									.some((report) => report.name === name && report.type === 'error');
 							}
 							else {
 								return false;
@@ -271,9 +274,9 @@ export default function (ItemsContainer) {
 			this.props.onValidationDone(reports);
 		}
 
-		_isAnyItemValidating () {
-			return Object.values(this.state.validatingKeysByItemId)
-				.some((keys) => keys.length);
+		_isAnyItemValidating (validatingKeysByItemId) {
+			return Object.values(validatingKeysByItemId)
+				.some((validatingKeys) => validatingKeys.length > 0);
 		}
 
 		_setStateAsync (changes) {
